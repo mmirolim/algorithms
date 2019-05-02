@@ -1,3 +1,5 @@
+pub mod tsp;
+
 pub mod strings {
     use std::cell::{Cell, RefCell};
     use std::collections::HashMap;
