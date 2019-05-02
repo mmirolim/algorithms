@@ -12,11 +12,9 @@ pub mod tsp {
         ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt()
     }
     pub fn total_dist(path: &Vec<Point>) -> f32 {
-        let mut p1 = &path[0];
         let mut d = 0.0;
-        for i in 1..path.len() {
-            d += dist(p1, &path[i]);
-            p1 = &path[i];
+        for i in 0..path.len() - 1 {
+            d += dist(&path[i], &path[i + 1]);
         }
         d + dist(&path[0], &path[path.len() - 1])
     }
