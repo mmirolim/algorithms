@@ -12,13 +12,13 @@ pub mod tsp {
         ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt()
     }
     pub fn total_dist(path: &Vec<Point>) -> f32 {
-        let p1 = &path[0];
+        let mut p1 = &path[0];
         let mut d = 0.0;
         for i in 1..path.len() {
             d += dist(p1, &path[i]);
+            p1 = &path[i];
         }
-        d += dist(&path[path.len() - 1], p1);
-        d
+        d + dist(&path[0], &path[path.len() - 1])
     }
     // TODO use linked list as output
     pub fn nearest_neighbour_solution<'a>(input: &'a Vec<Point>) -> Vec<Point> {
@@ -120,24 +120,18 @@ pub mod tsp {
         }
         out
     }
-    pub fn optimal_solution(_input: &Vec<Point>) -> Vec<Point> {
-        vec![]
-        // let mut min = (1 << 20) as f32;
-        // let generateAllSubsets = |input: &Vec<Point>| -> Vec<Vec<Point>> {
-        //     let mut out = vec![];
-
-        //     out
-        // };
-        // let all_paths = generateAllSubsets(input);
-        // let mut min_path: &Vec<Point>;
-        // let d = 0.0;
-        // for path in all_paths {
-        //     d = total_dist(&path);
-        //     if min > d {
-        //         min = d;
-        //     }
-        // }
-        // *min_path
+    pub fn optimal_solution(input: &mut Vec<Point>) -> Vec<Point> {
+        let mut min = (1 << 20) as f32;
+        let all_paths = permutations(input);
+        let mut min_path = None;
+        for path in all_paths {
+            let d = total_dist(&path);
+            if min > d {
+                min = d;
+                min_path = Some(path);
+            }
+        }
+        min_path.unwrap().to_vec()
     }
 
     pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
@@ -187,21 +181,21 @@ mod tests {
     }
 
     #[test]
-    fn test_sa_solution() {
+    fn test_optimal_solution() {
         let mut v: Vec<Point> = CIRCULAR_POS.to_vec();
-        let mut result = sa_solution(&v);
+        let mut result = optimal_solution(&mut v);
         assert_eq!(result.len(), CIRCULAR_POS.len());
-        println!("SA CIRCULAR_POS result {:?}", result);
+        println!("OPTIMAL CIRCULAR_POS result {:?}", result);
 
         v = INLINE_POS.to_vec();
-        result = sa_solution(&v);
+        result = optimal_solution(&mut v);
         assert_eq!(result.len(), INLINE_POS.len());
-        println!("SA INLINE_POS {:?}", result);
+        println!("OPTIMAL INLINE_POS {:?}", result);
 
         v = RECTANGLE_POS.to_vec();
-        result = sa_solution(&v);
+        result = optimal_solution(&mut v);
         assert_eq!(result.len(), RECTANGLE_POS.len());
-        println!("SA RECTANGLE_POS {:?}", result);
+        println!("OPTIMAL RECTANGLE_POS {:?}", result);
     }
     #[test]
     fn test_permutations() {
