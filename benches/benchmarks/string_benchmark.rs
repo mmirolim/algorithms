@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate criterion;
-
 use algos::strings::*;
 use criterion::*;
 
@@ -29,5 +26,3 @@ criterion_group!(
     search_min_window_benchmark,
     the_8_queen_puzzle_nw_solution_benchmark,
 );
-
-criterion_main!(benches);

@@ -5,6 +5,7 @@ name = "algos"
 version = "0.1.0"
 dependencies = [
  "criterion 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "walkdir 2.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
