@@ -52,12 +52,26 @@ fn optimal_solution_bench(c: &mut Criterion) {
     }
 }
 
+fn sa_solution_bench(c: &mut Criterion) {
+    let data = data();
+    for d in data.iter() {
+        let d = d.clone();
+        c.bench(
+            "tsp-algorithms",
+            Benchmark::new("sa_solution ".to_string() + d.0, move |b| {
+                b.iter(|| sa_solution(&d.1))
+            }),
+        );
+    }
+}
+
 criterion_group!(
     benches,
     permutations_benchmark,
     nearest_neighbour_solution_bench,
     closest_pair_solution_bench,
     optimal_solution_bench,
+    sa_solution_bench
 );
 
 fn data() -> [(&'static str, Vec<Point>); 2] {

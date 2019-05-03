@@ -5,10 +5,12 @@ authors = ["Mirolim Mirzakhmedov <mirolim.mirzakhmedov@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+rand = "0.6.5"
 
 [dev-dependencies]
 criterion = "0.2"
 walkdir = "2.2.7"
+
 
 [[bench]]
 name = "bench_main"

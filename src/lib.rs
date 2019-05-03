@@ -1,3 +1,5 @@
+extern crate rand;
+
 pub mod tsp;
 
 pub mod strings {

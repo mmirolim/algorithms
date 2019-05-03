@@ -1,4 +1,7 @@
+use rand::{thread_rng, Rng};
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
@@ -130,11 +133,81 @@ pub fn optimal_solution(input: &mut Vec<Point>) -> Vec<Point> {
     }
     min_path.unwrap().to_vec()
 }
-
+// simulated annealing
 pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
-    let mut out = vec![];
+    type State = Rc<RefCell<Vec<Point>>>;
 
-    out
+    let rng = Rc::new(RefCell::new(thread_rng()));
+    let state: State = Rc::new(RefCell::new(input.clone()));
+    let iter_num = input.len();
+    const ALPHA: f32 = 0.99;
+    const T0: f32 = 1.0;
+    const MIN_T: f32 = 0.0001;
+
+    let temp = |t| -> f32 { ALPHA * t };
+
+    let transition_prob = |e1: f32, e2: f32, t: f32| -> f32 {
+        if e2 < e1 {
+            1.0
+        } else {
+            (-(e2 - e1) / t).exp()
+        }
+    };
+
+    let energy = |s: State| -> f32 { total_dist(&s.borrow()) };
+
+    let neighbour = |v: State| -> (usize, usize) {
+        let mut v = v.borrow_mut();
+        let mut rng = rng.borrow_mut();
+        let pos1 = rng.gen_range(0, v.len());
+        let mut pos2: usize;
+        loop {
+            pos2 = rng.gen_range(0, v.len());
+            if pos1 != pos2 {
+                break;
+            }
+        }
+
+        let tmp = v[pos1];
+        v[pos1] = v[pos2];
+        v[pos2] = tmp;
+        (pos1, pos2)
+    };
+
+    let revert = |pos1: usize, pos2: usize, v: State| {
+        let mut v = v.borrow_mut();
+        let tmp = v[pos1];
+        v[pos1] = v[pos2];
+        v[pos2] = tmp;
+    };
+
+    let mut t = T0;
+    // initial path state
+    let mut e_last = energy(Rc::clone(&state));
+    let mut e_new: f32;
+    let mut energy_last_update_temp = T0;
+    'outer: loop {
+        t = temp(t);
+        for _ in 0..iter_num {
+            let (pos1, pos2) = neighbour(Rc::clone(&state));
+            e_new = energy(Rc::clone(&state));
+            if transition_prob(e_last, e_new, t) > rng.borrow_mut().gen_range(0.0, 1.0) {
+                e_last = e_new;
+                energy_last_update_temp = t;
+            } else {
+                revert(pos1, pos2, Rc::clone(&state));
+            }
+        }
+        // stop if 10% of temp change didn't change energy level
+        if (energy_last_update_temp - t) >= 0.1 * energy_last_update_temp {
+            break 'outer;
+        }
+        if t < MIN_T {
+            break;
+        }
+    }
+
+    Rc::try_unwrap(state).unwrap().into_inner()
 }
 
 #[cfg(test)]
@@ -186,6 +259,19 @@ mod tests {
             assert_eq!(result.len(), d.1.len());
             println!(
                 "OS {} min dist {} path {}",
+                d.0,
+                total_dist(&result),
+                path_to_string(&result)
+            );
+        }
+    }
+    #[test]
+    fn test_sa_solution() {
+        for d in data().iter() {
+            let result = sa_solution(&mut d.1.to_owned());
+            assert_eq!(result.len(), d.1.len());
+            println!(
+                "SA {} min dist {} path {}",
                 d.0,
                 total_dist(&result),
                 path_to_string(&result)
@@ -328,6 +414,11 @@ mod tests {
     ];
     const RECTANGLE_POS: [Point; 6] = [
         Point {
+            code: 5,
+            x: 12.2,
+            y: 2.0,
+        },
+        Point {
             code: 1,
             x: 2.0,
             y: 2.0,
@@ -338,19 +429,14 @@ mod tests {
             y: 6.9,
         },
         Point {
-            code: 3,
-            x: 7.1,
-            y: 6.9,
-        },
-        Point {
             code: 4,
             x: 12.2,
             y: 6.9,
         },
         Point {
-            code: 5,
-            x: 12.2,
-            y: 2.0,
+            code: 3,
+            x: 7.1,
+            y: 6.9,
         },
         Point {
             code: 6,
