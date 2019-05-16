@@ -3,6 +3,11 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+pub trait Distanced {
+    fn id(&self) -> usize;
+    fn distance_to(&self, d: &Self) -> f32;
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct Point {
     pub code: usize,
@@ -10,26 +15,37 @@ pub struct Point {
     pub y: f32,
 }
 
+impl Distanced for Point {
+    fn id(&self) -> usize {
+        self.code
+    }
+    fn distance_to(&self, d: &Self) -> f32 {
+        ((d.x - self.x).powi(2) + (d.y - self.y).powi(2)).sqrt()
+    }
+}
+
 pub fn dist(p1: &Point, p2: &Point) -> f32 {
     ((p2.x - p1.x).powi(2) + (p2.y - p1.y).powi(2)).sqrt()
 }
-pub fn total_dist(path: &Vec<Point>) -> f32 {
+
+pub fn total_dist<T: Distanced>(path: &Vec<&T>) -> f32 {
     let mut d = 0.0;
     for i in 0..path.len() - 1 {
-        d += dist(&path[i], &path[i + 1]);
+        d += &path[i].distance_to(&path[i + 1]);
     }
-    d + dist(&path[0], &path[path.len() - 1])
+    d + &path[0].distance_to(&path[path.len() - 1])
 }
+
 // TODO use linked list as output
-pub fn nearest_neighbour_solution<'a>(input: &'a Vec<Point>) -> Vec<Point> {
+pub fn nearest_neighbour_solution<'a, T: Distanced>(input: &'a Vec<T>) -> Vec<&T> {
     let mut out = vec![];
-    let choose_start_point = |ps: &'a [Point]| -> &'a Point { &ps[0] };
+    let choose_start_point = |ps: &'a [T]| -> &'a T { &ps[0] };
     let nearest_unvisited_neighbour =
-        |p1: &Point, unvisited: &HashMap<usize, &'a Point>| -> Option<&'a Point> {
+        |p1: &T, unvisited: &HashMap<usize, &'a T>| -> Option<&'a T> {
             let mut min = (1 << 20) as f32;
             let mut p_nearest = None;
             for (_, p) in unvisited {
-                let d = dist(p1, &p);
+                let d = p1.distance_to(*p);
                 if min > d {
                     min = d;
                     p_nearest = Some(*p);
@@ -39,44 +55,55 @@ pub fn nearest_neighbour_solution<'a>(input: &'a Vec<Point>) -> Vec<Point> {
         };
 
     let mut p = choose_start_point(input);
-    let mut unvisited_points = |start_point: &'a Point| -> HashMap<usize, &Point> {
-        let mut dic = HashMap::new();
-        for p in input {
-            if start_point.code == p.code {
-                continue;
-            }
-            dic.insert(p.code, p);
-        }
-        dic
-    }(p);
+
+    let mut unvisited_points = HashMap::new();
+    for p in input {
+        unvisited_points.insert(p.id(), p);
+    }
+    unvisited_points.remove(&p.id());
     // store start point
-    out.push(*p);
+    out.push(p);
     while !&unvisited_points.is_empty() {
         p = nearest_unvisited_neighbour(p, &unvisited_points).unwrap();
-        out.push(*p);
-        unvisited_points.remove(&p.code);
+        out.push(p);
+        unvisited_points.remove(&p.id());
     }
 
     out
 }
 
-pub fn closest_pair_solution<'a>(input: &'a Vec<Point>) -> Vec<Point> {
+pub fn closest_pair_dq_solution(input: &Vec<Point>) -> Vec<Point> {
+    let out = vec![];
+    let mut xs = input.clone();
+    xs.sort_unstable_by(|p1, p2| p1.x.partial_cmp(&p2.x).unwrap());
+    let mut ys = input.clone();
+    ys.sort_unstable_by(|p1, p2| p1.y.partial_cmp(&p2.y).unwrap());
+
+    let closest_pair = || -> (usize, usize) { (0, 0) };
+
+    out
+}
+
+pub fn closest_pair_brute_solution<'a, T: Distanced>(input: &'a Vec<T>) -> Vec<&T> {
     let mut out = vec![];
-    out.push(input[0]);
+    // TODO use random starting point
+    out.push(&input[0]);
 
     let mut unjoined = HashMap::new();
-    for i in 1..input.len() {
-        unjoined.insert(input[i].code, &input[i]);
+    for i in 0..input.len() {
+        unjoined.insert(input[i].id(), &input[i]);
     }
+    unjoined.remove(&input[0].id());
 
+    let mut ends = 1;
     while !&unjoined.is_empty() {
         let mut min = (1 << 20) as f32;
-        let mut p_nearest = None;
+        let mut p_nearest: Option<&T> = None;
         let mut index = 0;
-        for i in 0..2 {
+        for i in 0..ends {
             let p1 = if i == 0 { out[0] } else { out[out.len() - 1] };
             for (_, p2) in &unjoined {
-                let d = dist(&p1, p2);
+                let d = p1.distance_to(p2);
                 if min > d {
                     min = d;
                     p_nearest = Some(p2);
@@ -84,19 +111,25 @@ pub fn closest_pair_solution<'a>(input: &'a Vec<Point>) -> Vec<Point> {
                 }
             }
         }
-        let p = *(p_nearest.unwrap());
-        unjoined.remove(&p.code);
+        let p = p_nearest.unwrap();
+        unjoined.remove(&p.id());
 
         if index == 0 {
-            out.insert(0, *p);
+            out.insert(0, p);
         } else {
-            out.push(*p)
+            out.push(p)
         }
+        ends = 2;
     }
 
     out
 }
-pub fn permutations(input: &mut Vec<Point>) -> Vec<Vec<Point>> {
+
+pub fn permutations<'a, T>(input: &mut Vec<&'a T>) -> Vec<Vec<&'a T>>
+where
+    T: Distanced,
+    T: Clone,
+{
     let mut out = vec![];
     if input.len() == 2 {
         out.push(vec![input[0], input[1]]);
@@ -107,7 +140,7 @@ pub fn permutations(input: &mut Vec<Point>) -> Vec<Vec<Point>> {
     loop {
         let result = permutations(&mut input[1..].to_vec());
         for mut v in result {
-            v.insert(0, input[0]);
+            v.insert(0, &input[0]);
             out.push(v);
         }
         if i == input.len() - 1 {
@@ -120,9 +153,14 @@ pub fn permutations(input: &mut Vec<Point>) -> Vec<Vec<Point>> {
     }
     out
 }
-pub fn optimal_solution(input: &mut Vec<Point>) -> Vec<Point> {
+pub fn optimal_solution<T>(input: &Vec<T>) -> Vec<&T>
+where
+    T: Distanced,
+    T: Clone,
+{
     let mut min = (1 << 20) as f32;
-    let all_paths = permutations(input);
+    let mut input: Vec<&T> = input.iter().collect();
+    let all_paths = permutations(&mut input);
     let mut min_path = None;
     for path in all_paths {
         let d = total_dist(&path);
@@ -134,11 +172,15 @@ pub fn optimal_solution(input: &mut Vec<Point>) -> Vec<Point> {
     min_path.unwrap().to_vec()
 }
 // simulated annealing
-pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
-    type State = Rc<RefCell<Vec<Point>>>;
+pub fn sa_solution<'a, T>(input: &Vec<T>) -> Vec<&T>
+where
+    T: Distanced,
+    T: std::fmt::Debug,
+{
+    type State<'a, T> = Rc<RefCell<Vec<&'a T>>>;
 
     let rng = Rc::new(RefCell::new(thread_rng()));
-    let state: State = Rc::new(RefCell::new(input.clone()));
+    let state: State<T> = Rc::new(RefCell::new(input.iter().collect()));
     let iter_num = input.len();
     const ALPHA: f32 = 0.99;
     const T0: f32 = 1.0;
@@ -154,9 +196,9 @@ pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
         }
     };
 
-    let energy = |s: State| -> f32 { total_dist(&s.borrow()) };
+    let energy = |s: State<T>| -> f32 { total_dist(&s.borrow()) };
 
-    let neighbour = |v: State| -> (usize, usize) {
+    let neighbour = |v: State<T>| -> (usize, usize) {
         let mut v = v.borrow_mut();
         let mut rng = rng.borrow_mut();
         let pos1 = rng.gen_range(0, v.len());
@@ -174,7 +216,7 @@ pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
         (pos1, pos2)
     };
 
-    let revert = |pos1: usize, pos2: usize, v: State| {
+    let revert = |pos1: usize, pos2: usize, v: State<T>| {
         let mut v = v.borrow_mut();
         let tmp = v[pos1];
         v[pos1] = v[pos2];
@@ -186,7 +228,7 @@ pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
     let mut e_last = energy(Rc::clone(&state));
     let mut e_new: f32;
     let mut energy_last_update_temp = T0;
-    'outer: loop {
+    loop {
         t = temp(t);
         for _ in 0..iter_num {
             let (pos1, pos2) = neighbour(Rc::clone(&state));
@@ -200,7 +242,7 @@ pub fn sa_solution(input: &Vec<Point>) -> Vec<Point> {
         }
         // stop if 10% of temp change didn't change energy level
         if (energy_last_update_temp - t) >= 0.1 * energy_last_update_temp {
-            break 'outer;
+            break;
         }
         if t < MIN_T {
             break;
@@ -219,10 +261,11 @@ mod tests {
             ("RECTANGLE_POS", RECTANGLE_POS.to_vec()),
         ]
     }
-    fn path_to_string(p: &Vec<Point>) -> String {
+    fn path_to_string<T: Distanced>(p: &Vec<&T>) -> String {
         p.iter()
-            .fold(String::new(), |acc, p| acc + &p.code.to_string())
+            .fold(String::new(), |acc, p| acc + &p.id().to_string())
     }
+
     use crate::tsp::*;
     #[test]
     fn test_nearest_neighbour_solution() {
@@ -239,9 +282,9 @@ mod tests {
     }
 
     #[test]
-    fn test_closest_pair_solution() {
+    fn test_closest_pair_brute_solution() {
         for d in data().iter() {
-            let result = closest_pair_solution(&d.1);
+            let result = closest_pair_brute_solution(&d.1);
             assert_eq!(result.len(), d.1.len());
             println!(
                 "CP {} min dist {} path {}",
@@ -255,7 +298,7 @@ mod tests {
     #[test]
     fn test_optimal_solution() {
         for d in data().iter() {
-            let result = optimal_solution(&mut d.1.to_owned());
+            let result = optimal_solution(&d.1);
             assert_eq!(result.len(), d.1.len());
             println!(
                 "OS {} min dist {} path {}",
@@ -268,7 +311,7 @@ mod tests {
     #[test]
     fn test_sa_solution() {
         for d in data().iter() {
-            let result = sa_solution(&mut d.1.to_owned());
+            let result = sa_solution(&d.1);
             assert_eq!(result.len(), d.1.len());
             println!(
                 "SA {} min dist {} path {}",
@@ -335,18 +378,34 @@ mod tests {
                 output: vec!["123", "132", "213", "231", "312", "321"],
             },
         ];
-        for mut d in input_data {
-            let output = permutations(&mut d.input);
+        for d in input_data {
+            let output = permutations(&mut d.input.iter().collect());
             let output = output
                 .iter()
                 .map(|v| {
                     v.iter()
-                        .fold(String::new(), |acc, p| acc + &p.code.to_string())
+                        .fold(String::new(), |acc, p| acc + &p.id().to_string())
                 })
                 .collect::<Vec<String>>();
 
             assert_eq!(d.output, output);
         }
+    }
+    #[test]
+    fn test_point_distanced() {
+        let p1 = Point {
+            code: 1,
+            x: 5.0,
+            y: 5.0,
+        };
+        let p2 = Point {
+            code: 2,
+            x: 4.0,
+            y: 6.0,
+        };
+        let d1 = dist(&p1, &p2);
+        let d2 = p1.distance_to(&p2);
+        assert_eq!(d1, d2);
     }
     const CIRCULAR_POS: [Point; 5] = [
         Point {

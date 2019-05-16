@@ -8,7 +8,7 @@ fn permutations_benchmark(c: &mut Criterion) {
         c.bench(
             "tsp",
             Benchmark::new("permutations ".to_string() + d.0, move |b| {
-                b.iter(|| permutations(&mut d.1))
+                b.iter(|| permutations(&mut d.1.iter().collect()))
             }),
         );
     }
@@ -26,14 +26,14 @@ fn nearest_neighbour_solution_bench(c: &mut Criterion) {
         );
     }
 }
-fn closest_pair_solution_bench(c: &mut Criterion) {
+fn closest_pair_brute_solution_bench(c: &mut Criterion) {
     let data = data();
     for d in data.iter() {
         let d = d.clone();
         c.bench(
             "tsp-algorithms",
-            Benchmark::new("closest_pair_solution ".to_string() + d.0, move |b| {
-                b.iter(|| closest_pair_solution(&d.1))
+            Benchmark::new("closest_pair_brute_solution ".to_string() + d.0, move |b| {
+                b.iter(|| closest_pair_brute_solution(&d.1))
             }),
         );
     }
@@ -42,11 +42,11 @@ fn closest_pair_solution_bench(c: &mut Criterion) {
 fn optimal_solution_bench(c: &mut Criterion) {
     let data = data();
     for d in data.iter() {
-        let mut d = d.clone();
+        let d = d.clone();
         c.bench(
             "tsp-algorithms",
             Benchmark::new("optimal_solution ".to_string() + d.0, move |b| {
-                b.iter(|| optimal_solution(&mut d.1))
+                b.iter(|| optimal_solution(&d.1))
             }),
         );
     }
@@ -69,7 +69,7 @@ criterion_group!(
     benches,
     permutations_benchmark,
     nearest_neighbour_solution_bench,
-    closest_pair_solution_bench,
+    closest_pair_brute_solution_bench,
     optimal_solution_bench,
     sa_solution_bench
 );
