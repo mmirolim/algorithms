@@ -2,9 +2,7 @@ use algos::tsp::*;
 use criterion::*;
 
 fn permutations_benchmark(c: &mut Criterion) {
-    let data = data();
-    for d in data.iter() {
-        let mut d = d.clone();
+    for d in INPUT.iter() {
         c.bench(
             "tsp",
             Benchmark::new("permutations ".to_string() + d.0, move |b| {
@@ -15,9 +13,7 @@ fn permutations_benchmark(c: &mut Criterion) {
 }
 
 fn nearest_neighbour_solution_bench(c: &mut Criterion) {
-    let data = data();
-    for d in data.iter() {
-        let d = d.clone();
+    for d in INPUT.iter() {
         c.bench(
             "tsp-algorithms",
             Benchmark::new("nearest_neighbour_solution ".to_string() + d.0, move |b| {
@@ -27,9 +23,7 @@ fn nearest_neighbour_solution_bench(c: &mut Criterion) {
     }
 }
 fn closest_pair_brute_solution_bench(c: &mut Criterion) {
-    let data = data();
-    for d in data.iter() {
-        let d = d.clone();
+    for d in INPUT.iter() {
         c.bench(
             "tsp-algorithms",
             Benchmark::new("closest_pair_brute_solution ".to_string() + d.0, move |b| {
@@ -40,9 +34,7 @@ fn closest_pair_brute_solution_bench(c: &mut Criterion) {
 }
 
 fn optimal_solution_bench(c: &mut Criterion) {
-    let data = data();
-    for d in data.iter() {
-        let d = d.clone();
+    for d in INPUT.iter() {
         c.bench(
             "tsp-algorithms",
             Benchmark::new("optimal_solution ".to_string() + d.0, move |b| {
@@ -53,13 +45,38 @@ fn optimal_solution_bench(c: &mut Criterion) {
 }
 
 fn sa_solution_bench(c: &mut Criterion) {
-    let data = data();
-    for d in data.iter() {
-        let d = d.clone();
+    for d in INPUT.iter() {
         c.bench(
             "tsp-algorithms",
             Benchmark::new("sa_solution ".to_string() + d.0, move |b| {
                 b.iter(|| sa_solution(&d.1))
+            }),
+        );
+    }
+}
+
+fn closest_pair_brute_bench(c: &mut Criterion) {
+    for d in INPUT.iter() {
+        c.bench(
+            "closest-pair-algorithms",
+            Benchmark::new("brute_solution ".to_string() + d.0, move |b| {
+                b.iter(|| closest_pair_brute(&d.1.iter().collect()))
+            }),
+        );
+    }
+}
+
+fn closest_pair_dq_2d_bench(c: &mut Criterion) {
+    for d in INPUT.iter() {
+        let mut xs: Vec<&Point> = d.1.iter().collect();
+        xs.sort_unstable_by(|&p1, &p2| p1.x.partial_cmp(&p2.x).unwrap());
+        let mut ys: Vec<&Point> = d.1.iter().collect();
+        ys.sort_unstable_by(|&p1, &p2| p1.y.partial_cmp(&p2.y).unwrap());
+
+        c.bench(
+            "closest-pair-algorithms",
+            Benchmark::new("dq_2d_solution ".to_string() + d.0, move |b| {
+                b.iter(|| closest_pair_dq_2d(&xs, &ys))
             }),
         );
     }
@@ -71,11 +88,13 @@ criterion_group!(
     nearest_neighbour_solution_bench,
     closest_pair_brute_solution_bench,
     optimal_solution_bench,
-    sa_solution_bench
+    sa_solution_bench,
+    closest_pair_brute_bench,
+    closest_pair_dq_2d_bench
 );
 
-fn data() -> [(&'static str, Vec<Point>); 2] {
-    [
+lazy_static! {
+    static ref INPUT: [(&'static str, Vec<Point>); 2] = [
         (
             "7 element INLINE_POS",
             vec![
@@ -151,5 +170,5 @@ fn data() -> [(&'static str, Vec<Point>); 2] {
                 },
             ],
         ),
-    ]
+    ];
 }

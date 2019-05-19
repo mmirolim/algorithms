@@ -1,5 +1,8 @@
 #[macro_use]
 extern crate criterion;
+#[macro_use]
+extern crate lazy_static;
+
 extern crate algos;
 extern crate walkdir;
 

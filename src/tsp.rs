@@ -6,6 +6,8 @@ use std::rc::Rc;
 pub trait Distanced {
     fn id(&self) -> usize;
     fn distance_to(&self, d: &Self) -> f32;
+    fn dimensions() -> usize;
+    fn dim_nth_val(&self, n: usize) -> f32;
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -21,6 +23,17 @@ impl Distanced for Point {
     }
     fn distance_to(&self, d: &Self) -> f32 {
         ((d.x - self.x).powi(2) + (d.y - self.y).powi(2)).sqrt()
+    }
+    fn dimensions() -> usize {
+        2
+    }
+
+    fn dim_nth_val(&self, n: usize) -> f32 {
+        match n {
+            2 => self.y,
+            1 => self.x,
+            _ => panic!("wrong dimention"),
+        }
     }
 }
 
@@ -71,17 +84,97 @@ pub fn nearest_neighbour_solution<'a, T: Distanced>(input: &'a Vec<T>) -> Vec<&T
 
     out
 }
+pub fn closest_pair_brute<'a, T>(input: &Vec<&'a T>) -> (&'a T, &'a T, f32)
+where
+    T: Distanced,
+{
+    let mut closest_pair = (input[0], input[0], 0.0);
+    let mut dmin = (1 << 20) as f32;
+    for i in 0..input.len() - 1 {
+        for j in i + 1..input.len() {
+            let d = input[i].distance_to(input[j]);
+            if d < dmin {
+                dmin = d;
+                closest_pair = (input[i], input[j], d);
+            }
+        }
+    }
 
-pub fn closest_pair_dq_solution(input: &Vec<Point>) -> Vec<Point> {
-    let out = vec![];
-    let mut xs = input.clone();
-    xs.sort_unstable_by(|p1, p2| p1.x.partial_cmp(&p2.x).unwrap());
-    let mut ys = input.clone();
-    ys.sort_unstable_by(|p1, p2| p1.y.partial_cmp(&p2.y).unwrap());
+    closest_pair
+}
 
-    let closest_pair = || -> (usize, usize) { (0, 0) };
+// xs and ys should be sorted in by x and y dimensions
+pub fn closest_pair_dq_2d<'a, T>(xs: &Vec<&'a T>, ys: &Vec<&'a T>) -> (&'a T, &'a T, f32)
+where
+    T: Distanced,
+{
+    let mut closest_pair = (xs[0], xs[0], 0.0);
+    let mut min_dist = (1 << 20) as f32;
+    if xs.len() <= 3 {
+        for i in 0..xs.len() - 1 {
+            for j in i + 1..xs.len() {
+                let d = xs[i].distance_to(xs[j]);
+                if d < min_dist {
+                    min_dist = d;
+                    closest_pair = (xs[i], xs[j], d);
+                }
+            }
+        }
+        return closest_pair;
+    }
 
-    out
+    let (xs_left, xs_right) = xs.split_at(xs.len() / 2);
+    let (xs_left, xs_right) = (xs_left.to_vec(), xs_right.to_vec());
+    let xm = xs[xs.len() / 2].dim_nth_val(1);
+    let ys_left = ys
+        .iter()
+        .filter_map(|&p| if p.dim_nth_val(1) < xm { Some(p) } else { None })
+        .collect();
+    let ys_right = ys
+        .iter()
+        .filter_map(|&p| {
+            if p.dim_nth_val(1) >= xm {
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let cp_left = closest_pair_dq_2d(&xs_left, &ys_left);
+    let cp_right = closest_pair_dq_2d(&xs_right, &ys_right);
+
+    if cp_left.2 < cp_right.2 {
+        closest_pair = cp_left;
+    } else {
+        closest_pair = cp_right;
+    }
+    let mut dmin = closest_pair.2;
+    // find min dist on lr border
+    let y_mid: Vec<&T> = ys
+        .iter()
+        .filter_map(|&p| {
+            if (p.dim_nth_val(1) - xm).abs() < dmin {
+                Some(p)
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    for i in 0..y_mid.len() - 1 {
+        let mut k = i + 1;
+        while k < y_mid.len() && y_mid[k].dim_nth_val(2) - y_mid[i].dim_nth_val(2) < dmin {
+            let d = y_mid[i].distance_to(y_mid[k]);
+            if d < dmin {
+                dmin = d;
+                closest_pair = (y_mid[i], y_mid[k], d);
+            }
+            k += 1;
+        }
+    }
+
+    closest_pair
 }
 
 pub fn closest_pair_brute_solution<'a, T: Distanced>(input: &'a Vec<T>) -> Vec<&T> {
@@ -294,7 +387,22 @@ mod tests {
             );
         }
     }
+    #[test]
+    fn test_closest_pair_dq_2d() {
+        for d in data().iter() {
+            let mut xs: Vec<&Point> = d.1.iter().collect();
+            xs.sort_unstable_by(|&p1, &p2| p1.x.partial_cmp(&p2.x).unwrap());
+            let mut ys: Vec<&Point> = d.1.iter().collect();
+            ys.sort_unstable_by(|&p1, &p2| p1.y.partial_cmp(&p2.y).unwrap());
 
+            let result = closest_pair_dq_2d(&xs, &ys);
+
+            let input = d.1.iter().collect();
+            let expected = closest_pair_brute(&input);
+
+            assert_eq!(expected.2, result.2);
+        }
+    }
     #[test]
     fn test_optimal_solution() {
         for d in data().iter() {
